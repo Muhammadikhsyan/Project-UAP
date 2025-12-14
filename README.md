@@ -28,3 +28,7 @@ Key:
 - **Library** : `ncurses`
 - **Platform** : Linux / macOS (WSL untuk Windows)
 
+## Author
+- Grace
+- Ikhsyan
+- Arga
