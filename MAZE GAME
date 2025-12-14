@@ -1,0 +1,213 @@
+#include <ncurses.h>
+#include <cstring>
+#include <iostream>
+
+using namespace std;
+
+/* =========================
+   KONFIGURASI MAZE
+   ========================= */
+
+const int MAX_ROWS = 15;
+const int MAX_COLS = 30;
+
+const char WALL   = '#';
+const char START  = 'S';
+const char EXIT   = 'E';
+const char PLAYER = '@';
+
+/* =========================
+   MAZE PER LEVEL
+   ========================= */
+
+const char levelMaze[3][MAX_ROWS][MAX_COLS + 1] = {
+
+    /* ---------- LEVEL 1 ---------- */
+    {
+        "##############################",
+        "#S   #        #              #",
+        "# ## # ###### # ####### #### #",
+        "#    #      # #       #    # #",
+        "#### ###### # ####### #### # #",
+        "#           #              # E",
+        "# ###### # #### #### ####### #",
+        "#        #           #       #",
+        "##############################",
+        "                              ",
+        "                              ",
+        "                              ",
+        "                              ",
+        "                              ",
+        "                              "
+    },
+
+    /* ---------- LEVEL 2 ---------- */
+    {
+        "##############################",
+        "#S       ####     #######    #",
+        "# ##### ######### ####### ## #",
+        "#     #       #       #      #",
+        "##### #######   ##### ###### #",
+        "#     #     # #     #      # #",
+        "# ##### ### ##############   #",
+        "#     # ### #     #       # ##",
+        "##### # ### # ### #######  # #",
+        "#     #   #   #   #   #      #",
+        "# ##### ##### ### # # # ### ##",
+        "#           #   #   #   #    E",
+        "##############################",
+        "                              ",
+        "                              "
+    },
+
+    /* ---------- LEVEL 3 ---------- */
+      {
+        "#############################",
+        "#S   ####     ##       #    #",
+        "# # ##### ### ## ##### # ## #",
+        "# #        #        #    ## #",
+        "# ########  ####### # ##### #",
+        "#       #   #        #      #",
+        "####### # ### #######  # ####",
+        "#       #     #       #     #",
+        "# ########### ########  ### #",
+        "#     #       #    #   # #  #",
+        "##### # ##### # ######## ## #",
+        "#     #    ## #   #   #     #",
+        "# ######### # # # # # #  ####",
+        "#           #   #   #  #    E",
+        "#############################"
+    }
+};
+
+/* =========================
+   UTILITAS MAZE
+   ========================= */
+
+void loadMaze(char maze[MAX_ROWS][MAX_COLS + 1], int level) {
+    for (int i = 0; i < MAX_ROWS; i++) {
+        strcpy(maze[i], levelMaze[level][i]);
+    }
+}
+
+void drawMaze(char maze[MAX_ROWS][MAX_COLS + 1]) {
+    for (int y = 0; y < MAX_ROWS; y++) {
+        for (int x = 0; x < MAX_COLS; x++) {
+            mvaddch(y + 1, x + 2, maze[y][x]);
+        }
+    }
+}
+
+/* =========================
+   MENU
+   ========================= */
+
+int showMenu() {
+    const char* menu[2] = { "Mulai Game", "Exit" };
+    int choice = 0;
+
+    nodelay(stdscr, FALSE);
+    keypad(stdscr, TRUE);
+
+    while (true) {
+        clear();
+        mvprintw(2, 8, "=== MAZE GAME ===");
+
+        for (int i = 0; i < 2; i++) {
+            if (i == choice) attron(A_REVERSE);
+            mvprintw(6 + i, 10, "%s", menu[i]);
+            if (i == choice) attroff(A_REVERSE);
+        }
+
+        int ch = getch();
+        if (ch == KEY_UP) choice = (choice - 1 + 2) % 2;
+        else if (ch == KEY_DOWN) choice = (choice + 1) % 2;
+        else if (ch == '\n') return choice;
+    }
+}
+
+/* =========================
+   GAME PER LEVEL
+   ========================= */
+
+bool playGame(int level) {
+    char maze[MAX_ROWS][MAX_COLS + 1];
+    loadMaze(maze, level);
+
+    int px = 0, py = 0;
+
+    for (int y = 0; y < MAX_ROWS; y++) {
+        for (int x = 0; x < MAX_COLS; x++) {
+            if (maze[y][x] == START) {
+                px = x;
+                py = y;
+                maze[y][x] = PLAYER;
+            }
+        }
+    }
+
+    nodelay(stdscr, TRUE);
+
+    while (true) {
+        clear();
+        mvprintw(0, 4, "RPG MAZE - LEVEL %d", level + 1);
+        mvprintw(MAX_ROWS + 2, 4, "Gerak: WASD / Arrow | Q = Menu");
+
+        drawMaze(maze);
+        refresh();
+
+        int ch = getch();
+        int nx = px, ny = py;
+
+        if (ch == 'q' || ch == 'Q') return false;
+        if (ch == KEY_UP || ch == 'w') ny--;
+        if (ch == KEY_DOWN || ch == 's') ny++;
+        if (ch == KEY_LEFT || ch == 'a') nx--;
+        if (ch == KEY_RIGHT || ch == 'd') nx++;
+
+        if (nx < 0 || ny < 0 || nx >= MAX_COLS || ny >= MAX_ROWS) continue;
+        if (maze[ny][nx] == WALL) continue;
+
+        if (maze[ny][nx] == EXIT) {
+            clear();
+            mvprintw(6, 6, "LEVEL %d SELESAI!", level + 1);
+            mvprintw(8, 6, "Tekan tombol apapun...");
+            getch();
+            return true;
+        }
+
+        maze[py][px] = ' ';
+        px = nx; py = ny;
+        maze[py][px] = PLAYER;
+
+        napms(40);
+    }
+}
+
+/* =========================
+   MAIN
+   ========================= */
+
+int main() {
+    initscr();
+    cbreak();
+    noecho();
+    curs_set(0);
+
+    if (LINES < MAX_ROWS + 6 || COLS < MAX_COLS + 6) {
+        endwin();
+        cerr << "Ukuran terminal terlalu kecil\n";
+        return 1;
+    }
+
+    while (true) {
+        if (showMenu() == 1) break;
+
+        for (int level = 0; level < 3; level++) {
+            if (!playGame(level)) break;
+        }
+    }
+
+    endwin();
+    return 0;
+}
